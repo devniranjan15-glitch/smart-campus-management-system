@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Smart Campus Management System - serverless starter
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref CampusTable
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'content-type,authorization'"
+      AllowOrigin: "'*'"
+
+Resources:
+  CampusApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+
+  CampusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: src/handler.handler
+      Events:
+        GetNotices:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CampusApi
+            Path: /notices
+            Method: GET
+        CreateNotice:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CampusApi
+            Path: /notices
+            Method: POST
+        GetAssignments:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CampusApi
+            Path: /assignments
+            Method: GET
+        CreateAssignment:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CampusApi
+            Path: /assignments
+            Method: POST
+        GetAttendance:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CampusApi
+            Path: /attendance
+            Method: GET
+        CreateAttendance:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref CampusApi
+            Path: /attendance
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CampusTable
+
+  CampusTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-campus-records'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: recordType
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: recordType
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway HTTP API URL
+    Value: !Sub 'https://${CampusApi}.execute-api.${AWS::Region}.amazonaws.com'
+  FrontendBucketName:
+    Description: Private S3 bucket for frontend build files; use CloudFront for secure hosting
+    Value: !Ref FrontendBucket
